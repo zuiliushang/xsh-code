@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- 控制台输出  -->
+    <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>DEBUG</level>
+        </filter>
+        <encoder>
+            <pattern>%d{MM-dd HH:mm:ss} [%thread] %-5level %logger{50} %L %M -- %msg%n</pattern>
+            <!--<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} %L %M- %msg%n</pattern>-->
+        </encoder>
+    </appender>
+
+    <!-- This is the kafkaAppender -->
+    <appender name="kafkaAppender" class="com.github.danielwegener.logback.kafka.KafkaAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>debug</level>
+        </filter>
+        <encoder class="com.github.danielwegener.logback.kafka.encoding.PatternLayoutKafkaMessageEncoder">
+            <layout class="net.logstash.logback.layout.LogstashLayout"></layout>
+        </encoder>
+        <topic>customer_backend_log</topic>
+        <keyingStrategy class="com.github.danielwegener.logback.kafka.keying.RoundRobinKeyingStrategy"/>
+        <deliveryStrategy class="com.github.danielwegener.logback.kafka.delivery.AsynchronousDeliveryStrategy"/>
+
+        <!-- each <producerConfig> translates to regular kafka-client config (format: key=value) -->
+        <!-- producer configs are documented here: https://kafka.apache.org/documentation.html#newproducerconfigs -->
+        <!-- bootstrap.servers is the only mandatory producerConfig -->
+        <!-- 在测试环境配置为 bootstrap.servers=192.168.100.30:9092,192.168.100.29:9092 -->
+        <!-- 在生产环境配置为 bootstrap.servers=192.168.100.56:9092,192.168.100.57:9092 -->
+        <producerConfig>bootstrap.servers=10.168.116.252:9092</producerConfig>
+
+        <!-- this is the fallback appender if kafka is not available. -->
+    </appender>
+
+    <!-- 异步输出 -->
+    <appender name="async" class="ch.qos.logback.classic.AsyncAppender">
+        <!-- 不丢失日志.默认的,如果队列的80%已满,则会丢弃TRACT、DEBUG、INFO级别的日志 -->
+        <discardingThreshold>0</discardingThreshold>
+        <!-- 更改默认的队列的深度,该值会影响性能.默认值为256 -->
+        <queueSize>512</queueSize>
+        <!-- 添加附加的appender,最多只能添加一个 -->
+        <appender-ref ref="kafkaAppender"/>
+    </appender>
+
+    <root level="stdout">
+        <!-- 在开发环境配置为 stdout -->
+        <!-- 在测试/生产环境配置为 async -->
+        <appender-ref ref="stdout"/>
+    </root>
+
+    <logger name="org.apache.kafka" level="WARN"/>
+</configuration>
