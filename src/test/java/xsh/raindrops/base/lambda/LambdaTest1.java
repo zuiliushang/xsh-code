@@ -139,7 +139,7 @@ public class LambdaTest1 {
 		int[] count = new int[1];
 		new Thread(()->{
 			count[0]++;
-		});
+		});	
 	}
 	
 }
