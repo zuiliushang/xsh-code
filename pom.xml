@@ -31,7 +31,7 @@
         <commons-io-version>2.4</commons-io-version>
         <commons-lang3-version>3.4</commons-lang3-version>
         <commons-beanutils-version>1.9.2</commons-beanutils-version>
-
+ 
         <slf4j-version>1.7.12</slf4j-version>
         <logback-version>1.1.2</logback-version>
 
@@ -50,7 +50,7 @@
 
         <httpclient-version>4.4.1</httpclient-version>
 
-        <junit-version>4.11</junit-version>
+        <junit-version>4.12</junit-version>
         <minjdk-version>1.8</minjdk-version>
 
         <google-guava-versin>18.0</google-guava-versin>
@@ -82,12 +82,34 @@
 			<version>0.6.5</version>
 		</dependency>
 	
-		<dependency>
+		<dependency> 
 			<groupId>net.openhft</groupId>
 			<artifactId>koloboke-impl-jdk8</artifactId>
 			<version>0.6.5</version>
 		</dependency>
 
+		<!-- https://mvnrepository.com/artifact/javax.mail/mail -->
+		<dependency>
+		    <groupId>javax.mail</groupId>
+		    <artifactId>mail</artifactId>
+		    <version>1.4.7</version>
+		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/com.google.code.gson/gson -->
+		<dependency>
+		    <groupId>com.google.code.gson</groupId>
+		    <artifactId>gson</artifactId>
+		    <version>2.8.0</version>
+		</dependency>
+		
+		
+		<!-- https://mvnrepository.com/artifact/org.w3c/dom -->
+		<dependency>
+		    <groupId>org.w3c</groupId>
+		    <artifactId>dom</artifactId>
+		    <version>2.3.0-jaxb-1.0.6</version>
+		</dependency>
+		
         <!--spring-->
         <dependency>
             <groupId>org.springframework</groupId>
@@ -104,6 +126,11 @@
 		    <artifactId>py4j</artifactId>
 		    <version>1.0.0</version>
 		</dependency> -->
+		<!-- <dependency>  
+            <groupId>org.apache.solr</groupId>  
+            <artifactId>solr-solrj</artifactId>  
+            <version>4.10.2</version>  
+		</dependency>   -->
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context-support</artifactId>
@@ -115,6 +142,15 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        
+        <!-- https://mvnrepository.com/artifact/org.elasticsearch/elasticsearch -->
+		<dependency>
+		    <groupId>org.elasticsearch</groupId>
+		    <artifactId>elasticsearch</artifactId>
+		    <version>2.4.5</version>
+		</dependency>
+        
+        
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-core</artifactId>
@@ -156,6 +192,35 @@
             <artifactId>spring-context</artifactId>
             <version>${spring-version}</version>
         </dependency>
+        
+        <!-- https://mvnrepository.com/artifact/org.apache.poi/poi -->
+		<dependency>
+		    <groupId>org.apache.poi</groupId>
+		    <artifactId>poi</artifactId>
+		    <version>3.14</version>
+		</dependency>
+        <!--
+		Attention: Be sure nothing pulls in an old dependency with groupId
+		"freemarker" (without the "org."), because then you will end up with
+		two freemarker.jar-s and unpredictable behavior!
+		-->
+		<dependency>
+		  <groupId>org.freemarker</groupId>
+		  <artifactId>freemarker</artifactId>
+		  <version>2.3.26-incubating</version>
+		</dependency>
+        
+        <!-- https://mvnrepository.com/artifact/org.apache.httpcomponents/httpcore-nio -->
+		<dependency>
+		    <groupId>org.apache.httpcomponents</groupId>
+		    <artifactId>httpcore-nio</artifactId>
+		    <version>4.3.2</version>
+		</dependency>
+        <dependency>
+    <groupId>org.apache.httpcomponents</groupId>
+    <artifactId>httpcore</artifactId>
+    <version>4.4.3</version>
+</dependency>
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-webmvc</artifactId>
@@ -203,7 +268,6 @@
             <artifactId>jackson-core</artifactId>
             <version>${jackson-version}</version>
         </dependency>
-
 
         <!--aspectj-->
         <dependency>
@@ -345,6 +409,13 @@
             <version>${netty-version}</version>
         </dependency>
 		
+		<!-- https://mvnrepository.com/artifact/io.netty/netty-all -->
+		<dependency>
+		    <groupId>io.netty</groupId>
+		    <artifactId>netty-all</artifactId>
+		    <version>4.1.6.Final</version>
+		</dependency>
+		
 		<dependency>
 			<groupId>commons-dbcp</groupId>
 			<artifactId>commons-dbcp</artifactId>
@@ -428,7 +499,15 @@
 		    <artifactId>jpinyin</artifactId>
 		    <version>1.0</version>
 		</dependency>
-
+		
+		<!-- https://mvnrepository.com/artifact/io.searchbox/jest -->
+		<dependency>
+		    <groupId>io.searchbox</groupId>
+		    <artifactId>jest</artifactId>
+		    <version>5.3.2</version>
+		</dependency>
+		
+		
         <!--buider-->
         <dependency>
             <groupId>javabuilder</groupId>
@@ -607,7 +686,7 @@
                 </plugin>
 
 
-                <plugin>
+                <plugin> 
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-checkstyle-plugin</artifactId>
                     <version>2.17</version>

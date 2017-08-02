@@ -21,7 +21,7 @@ import com.esotericsoftware.kryo.io.Output;
 	    支持null
 	    代码入侵少
 	    代码比较简法（比起msgpack，少得多）
-
+	BUG多
  */
 public class MyFirstSerialize {
 	public static void main(String[] args) {
