@@ -8,7 +8,6 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooDefs.Ids;
-import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.ZooKeeper;
 import org.junit.Before;
 import org.junit.Test;

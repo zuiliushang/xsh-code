@@ -1,15 +1,6 @@
 package xsh.raindrops.base.lambda;
 
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.function.IntPredicate;
-import java.util.function.IntSupplier;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
-
 import org.junit.Test;
-import com.google.common.collect.Lists;
 
 /**
  * 

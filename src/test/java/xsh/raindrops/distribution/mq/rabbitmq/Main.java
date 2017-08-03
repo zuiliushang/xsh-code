@@ -1,7 +1,6 @@
 package xsh.raindrops.distribution.mq.rabbitmq;
 
 import java.util.HashMap;
-import java.util.Map;
 
 /**
  * 在下面的测试类中，先运行一个消费者线程，然后开始产生大量的消息，这些消息会被消费者取走。

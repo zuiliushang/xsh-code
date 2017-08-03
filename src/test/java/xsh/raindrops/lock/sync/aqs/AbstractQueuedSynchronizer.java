@@ -1,5 +1,4 @@
 package xsh.raindrops.lock.sync.aqs;
-import java.net.URI;
 import java.util.ArrayList;
 
 import java.util.Collection;
@@ -565,7 +564,8 @@ public abstract class AbstractQueuedSynchronizer
         }
         return list;
     }
-    public String toString() {
+    @Override
+	public String toString() {
         int s = getState();
         String q  = hasQueuedThreads() ? "non" : "";
         return super.toString() +
@@ -694,21 +694,24 @@ public abstract class AbstractQueuedSynchronizer
                 t = next;
             }
         }
-        public final void signal() {
+        @Override
+		public final void signal() {
             if (!isHeldExclusively())
                 throw new IllegalMonitorStateException();
             Node first = firstWaiter;
             if (first != null)
                 doSignal(first);
         }
-        public final void signalAll() {
+        @Override
+		public final void signalAll() {
             if (!isHeldExclusively())
                 throw new IllegalMonitorStateException();
             Node first = firstWaiter;
             if (first != null)
                 doSignalAll(first);
         }
-        public final void awaitUninterruptibly() {
+        @Override
+		public final void awaitUninterruptibly() {
             Node node = addConditionWaiter();
             int savedState = fullyRelease(node);
             boolean interrupted = false;
@@ -734,7 +737,8 @@ public abstract class AbstractQueuedSynchronizer
             else if (interruptMode == REINTERRUPT)
                 selfInterrupt();
         }
-        public final void await() throws InterruptedException {
+        @Override
+		public final void await() throws InterruptedException {
             if (Thread.interrupted())
                 throw new InterruptedException();
             Node node = addConditionWaiter();
@@ -752,7 +756,8 @@ public abstract class AbstractQueuedSynchronizer
             if (interruptMode != 0)
                 reportInterruptAfterWait(interruptMode);
         }
-        public final long awaitNanos(long nanosTimeout)
+        @Override
+		public final long awaitNanos(long nanosTimeout)
                 throws InterruptedException {
             if (Thread.interrupted())
                 throw new InterruptedException();
@@ -779,7 +784,8 @@ public abstract class AbstractQueuedSynchronizer
                 reportInterruptAfterWait(interruptMode);
             return deadline - System.nanoTime();
         }
-        public final boolean awaitUntil(Date deadline)
+        @Override
+		public final boolean awaitUntil(Date deadline)
                 throws InterruptedException {
             long abstime = deadline.getTime();
             if (Thread.interrupted())
@@ -805,7 +811,8 @@ public abstract class AbstractQueuedSynchronizer
                 reportInterruptAfterWait(interruptMode);
             return !timedout;
         }
-        public final boolean await(long time, TimeUnit unit)
+        @Override
+		public final boolean await(long time, TimeUnit unit)
                 throws InterruptedException {
             long nanosTimeout = unit.toNanos(time);
             if (Thread.interrupted())

@@ -2,8 +2,6 @@ package xsh.raindrops.lock.problem;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicStampedReference;
 
-import org.junit.Test;
-
 import sun.misc.Unsafe;
 import xsh.raindrops.lock.util.UnsafeUtil;
 

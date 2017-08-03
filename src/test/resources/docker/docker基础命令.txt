@@ -1,0 +1,104 @@
+docker 命令
+####################################
+docker pull centos:latest ### 从公共registry 下载一个镜像
+docker images 	### 列出所有镜像
+docker run --rm -ti centos /bin/bash	###创建一个容器
+--rm 告诉Docker一旦运行的进程退出就删除容器。这在进行测试时非常有用，可免除杂乱
+-ti 告诉Docker分配一个伪终端并进入交互模式。这将进入到容器内，对于快速原型开发或尝试很有用，但不要在生产容器中打开这些标志
+=========================
+docker run -d centos ping 8.8.8.8
+docker ps ###查看docker容器运行情况 -a 查看终止的
+docker exec -ti 容器名称 /bin/bash
+=======================================
+TAG信息用来标记来自同一个仓库的不同镜像。例如ubuntu仓库中有多个镜像，通过TAG信息来区分 发行版本，例如10.04、12.04、12.10、13.04	、14.04等。例如下面的命令指定使用镜像ubuntu:14.04来启动一个容器。
+docker	run	-t	-i	ubuntu:14.04	/bin/bash -d(守护运行)
+=========================================
+docker start 开启已经终止的容器
+docker stop  相反
+docker restart
+
+修改已有镜像
+###########################################
+先使用下载的镜像启动容器
+sudo docker run	-t -i training/sinatra /bin/bash
+root@0b2616b0e5a8:/# 记住容器的ID
+-m 是修改记录信息 -a 用户
+=========================================
+sudo	docker	commit	-m	"Added	json	gem"	-a	"Docker	Newbee"	0b2616b0e5a8	ouruser/sinatra:v2 4f177bd27a9ff0f6dc2a830403925b5360bfe0b93d476f7fc3231110e7f71b1c
+=========================================
+利用Dockerfile创建
+#########################################
+使用docker commit来扩展一个镜像比较简单，但是不方便在一个团队中分享。我们可以使用docker build来创建一个新的镜像。
+为此，首先需要创建一个Dockerfile，包含一些如何创建镜像的指令。
+例子##########################################
+#This is a comment                           #使用 # 来注释
+FROM ubuntu:14.04                            #FROM 告诉使用什么镜像
+MAINTAINER Docker Newbee <newbee@docker.com> #维护者信息
+RUN apt-get -qq update                       #RUN开头的指令会在创建中运行，比如安装一个软件包，
+RUN apt-get -qqy install ruby ruby-dev       #在这里使用apt-get来安装了一些软件
+RUN gem	install	sinatra			     #
+##############################################
+========================================================
+docker push 上传镜像
+sudo docker push ouruser/sinatra 
+=========================================================
+存出和载入镜像
+######################################################
+docker save -o ubuntu_14.04.tar ubuntu:14.04
+docker load --input ubuntu_14.04.tar
+===========================================================
+移除本地镜像
+docker rmi training/sinatra 在删除镜像之前要先用 docker rm 删除依赖这个镜像的所有容器
+======================================================================
+获取容器log
+docker logs insane_babbage 
+=======================================================================
+导入和导出容器
+docker export 7691a814370e > ubuntu.tar 导出容器
+cat ubuntu.tar | sudo docker import - test/ubuntu:v1.0  导入容器
+docker import http://example.com/exampleimage.tgz example/imagerepo 从url导入
+=================================================================
+删除容器
+docker rm xxx
+==============================================================================
+docker 仓库
+########################################################3
+略
+==========================================================
+docker 数据卷
+###########################################################
+数据卷是一个可供一个或多个容器使用的特殊目录，它绕过	UFS，可以提供很多有用的特性：
+数据卷可以在容器之间共享和重用
+对数据卷的修改会立马生效
+对数据卷的更新，不会影响镜像
+卷会一直存在，直到没有容器使用
+=============================================================
+docker run -d -P --name web -v /webapp training/webapp python app.py 创建一个数据卷 -v
+*注意：也可以在Dockerfile中使用VOLUME来添加一个或者多个新的卷到由该镜像创建的任意容器。
+docker run -d -P --name web -v /src/webapp:/opt/webapp:ro ##ro指定为只读。默认读写
+docker run --rm -it -v ~/.bash_history:/.bash_history ubuntu /bin/bash 挂载一个本地主机文件作为数据卷（一般挂载目录不会单纯文件 ）
+=============================================================
+docker 数据卷容器
+###############################################################
+如果你有一些持续更新的数据需要在容器之间共享，最好创建数据卷容器。
+数据卷容器，其实就是一个正常的容器，专门用来提供数据卷供其它容器挂载的。
+docker run -d -v /dbdata --name dbdata training/postgres echo Data-only container
+然后，在其他容器中使用 --volumes-from 来挂载dbdata容器中的数据卷。
+docker run -d --volumes-from dbdata --name db1 training/postgres  所挂载数据卷的容器自己并不需要保持在运行状态
+======================================================================================================================
+利用数据卷容器来备份、恢复、迁移数据卷
+docker run --volumes-from dbdata -v $(pwd):/backup ubuntu tar cvf /backup/backup.tar 备份
+docker run -v /dbdata --name dbdata2 ubuntu /bin/bash  恢复
+docker run --volumes-from dbdata2 -v $(pwd):/backup busybox tar xvf /backup/backup.tar 恢复到另外一个容器中
+================================================================================
+外部访问容器
+#############################################################################################
+docker run -d -p 127.0.0.1:5000:5000/udp -p 3306:3306 training/webapp python app.py 端口映射
+docker port nostalgic_morse 5000  查看端口映射配置
+================================================================================================
+容器互联
+#############################################################################################
+docker run -d -P --name web training/webapp python app.py  # --name 为容器自定义命名 唯一！
+docker ps -l 验证设定的命名或者 docker inspect -f "{{ .Name }}" aed84ee21bde
+docker run -d -P --name web --link db:db training/webapp python app.py db:db是其他容器名
+docker run --rm --name web2 --link db:db training/webapp env #env命令来查看web容器的环境变量

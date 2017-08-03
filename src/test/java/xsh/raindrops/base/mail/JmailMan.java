@@ -3,6 +3,7 @@ package xsh.raindrops.base.mail;
 import java.util.Date;
 import java.util.Properties;
 
+import javax.mail.Message.RecipientType;
 import javax.mail.Session;
 import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
@@ -93,7 +94,7 @@ public class JmailMan {
         message.setFrom(new InternetAddress(sendMail, "某宝网", "UTF-8"));
 
         // 3. To: 收件人（可以增加多个收件人、抄送、密送）
-        message.setRecipient(MimeMessage.RecipientType.TO, new InternetAddress(receiveMail, "XX用户", "UTF-8"));
+        message.setRecipient(RecipientType.TO, new InternetAddress(receiveMail, "XX用户", "UTF-8"));
 
         // 4. Subject: 邮件主题
         message.setSubject("打折钜惠", "UTF-8");

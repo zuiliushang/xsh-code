@@ -1,11 +1,6 @@
 package xsh.raindrops.base.jpinyin;
 
-import java.io.File;
-
 import org.junit.Test;
-
-import com.github.stuxuhai.jpinyin.PinyinFormat;
-import com.github.stuxuhai.jpinyin.PinyinHelper;
 
 /**
  * 将中文转换成拼音
