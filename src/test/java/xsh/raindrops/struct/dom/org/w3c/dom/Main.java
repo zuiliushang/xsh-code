@@ -2,21 +2,29 @@ package xsh.raindrops.struct.dom.org.w3c.dom;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Optional;
+
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.junit.Test;
+import org.springframework.util.CollectionUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
+
+import xsh.raindrops.project.util.DateUtil;
 
 /**
  * 
@@ -36,7 +44,6 @@ import org.xml.sax.SAXException;
  * 
  */
 public class Main {
-
 	@Test
 	public void test01() {
 		try {
@@ -73,6 +80,8 @@ public class Main {
 	 */
 	@Test
 	public void test02() throws ParserConfigurationException, SAXException, IOException {
+		ReportResultData reportResultData = new ReportResultData();
+		SourceUser sourceUser = new SourceUser();
 		InputStream inputStream = Main.class.getClassLoader().getResourceAsStream("test.xml");
 		Document document = XmlUtil.getDocument(inputStream);
 		NodeList nodeList = document.getElementsByTagName("page");
@@ -98,6 +107,40 @@ public class Main {
 		List<Dictionary> dictionaries = new ArrayList<>();//结果集
 		while (listIterator.hasNext()) {
 			TextNode nextNode = listIterator.next();// 获取下个节点
+			if (nextNode.getPageIndex()==1 && listIterator.hasNext()) {//从第一页找用户数据
+				if (nextNode.getValue().equals("健康体检报告")) {
+					TextNode tmpNode = null;
+					List<TextNode> tmpArray = null;
+					while (listIterator.hasNext()) {
+						TextNode pageOneNode = listIterator.next();
+						if (tmpNode!=null && (tmpNode.getTop()+tmpNode.getHeight())>=pageOneNode.getTop() && tmpNode.getTop() <= pageOneNode.getTop()) {
+							tmpArray.add(pageOneNode);
+						}else {
+							
+							if (CollectionUtils.isEmpty(tmpArray)) {
+								tmpArray.sort(Comparator.comparing(TextNode::getLeft));
+								if (tmpArray.size()>=2) {
+									TextNode itemTitle = tmpArray.get(0);
+									String itemStr = itemTitle.getValue().replaceAll(" ", "");
+									if (itemStr.startsWith("体检编号")) {
+										reportResultData.setReportCode(tmpArray.get(1).getValue());
+									}else if (itemStr.startsWith("姓名")) {
+										sourceUser.setName(tmpArray.get(1).getValue());
+									}else if (itemStr.startsWith("姓名")){
+										
+									}
+								}
+							}
+							tmpArray = new ArrayList<>();
+							tmpNode = pageOneNode;
+							tmpArray.add(tmpNode);
+						}
+					}
+				}
+			}
+			
+			
+			
 			if (nextNode.getValue().equals("项目名称")) {// 从项目名称开始
 				// 往前获取科室项 1):记录当前迭代器位置. 2):往前找寻找科室项 3):恢复当前位置
 				String departName;
@@ -276,6 +319,9 @@ public class Main {
 
 	@Test
 	public void test03() throws ParserConfigurationException, SAXException, IOException {
+		ReportResultData reportResultData = new ReportResultData();
+		SourceUser sourceUser = new SourceUser();
+		
 		InputStream inputStream = Main.class.getClassLoader().getResourceAsStream("meinian2.xml");
 		Document document = XmlUtil.getDocument(inputStream);
 		NodeList nodeList = document.getElementsByTagName("page");
@@ -299,11 +345,65 @@ public class Main {
 		ListIterator<TextNode> listIterator = textNodes.listIterator();
 		int index = 0;// 记录迭代器位置
 		String departName = null;//科室
+		String doctor = null;
 		int top = 0;
 		int page = 0;
 		List<Dictionary> dictionaries = new ArrayList<>();//结果集
 		while (listIterator.hasNext()) {
 			TextNode textNode = listIterator.next();
+			//从第一页 获取用户信息
+			while (listIterator.hasNext()&&textNode.pageIndex==1) {
+				textNode = listIterator.next();
+				if (textNode.getValue().contains("女")) {
+					String tmpValue = textNode.getValue();
+					String[] stringArr = tmpValue.split("女");
+					String name = stringArr[0].trim();
+					String gender = stringArr[1].trim();
+					sourceUser.setName(name);//名字
+					sourceUser.setGender("女"+gender);//性别
+				}else if (textNode.getValue().contains("男")) {
+					String tmpValue = textNode.getValue();
+					String[] stringArr = tmpValue.split("男");
+					String name = stringArr[0].trim();
+					String gender = stringArr[1].trim();
+					sourceUser.setName(name);//名字
+					sourceUser.setGender("男"+gender);//性别
+				}
+				if (textNode.getValue().startsWith("身份证") && listIterator.hasNext()) {
+					TextNode tmpNode = listIterator.next();
+					if (tmpNode.getTop()==textNode.getTop()) {
+						sourceUser.setIdentityNumber(tmpNode.getValue());//获取身份证
+					}
+				}
+				if (textNode.getValue().startsWith("体检号") && listIterator.hasNext()) {
+					TextNode tmpNode = listIterator.next();
+					if (tmpNode.getTop()==textNode.getTop()) {
+						reportResultData.setReportCode(tmpNode.getValue());
+					}
+				}
+				if (textNode.getValue().startsWith("体检时间") && listIterator.hasNext()) {
+					TextNode tmpNode = listIterator.next();
+					if (tmpNode.getTop()==textNode.getTop()) {
+						reportResultData.setExamTime(DateUtil.StringToDate(tmpNode.getValue()));
+					}
+				}
+			}
+			
+			//寻找体检结果数据
+			if (textNode.getValue().startsWith("★") && textNode.getLeft()==66) {
+				StringBuffer stringBuffer = new StringBuffer(textNode.getValue());
+				while (listIterator.hasNext()) {
+					TextNode tmpNode = listIterator.next();
+					if (tmpNode.getValue().startsWith("体检结果说明")) {//找完了
+						break;
+					}
+					if (tmpNode.getLeft()==66) {
+						stringBuffer.append(tmpNode.getValue());
+					}
+				}
+				reportResultData.setSummary(stringBuffer.toString());//获取结果
+			}
+			
 			if (textNode.getValue().startsWith("检查项目名称")) {//读取直到读取到检查项目名称
 				//记录指针位置
 				index = listIterator.nextIndex();
@@ -322,6 +422,9 @@ public class Main {
 				}
 				while (textNode.getTop()==top&&listIterator.hasNext()) {//和检查项目名称同行
 					textNode = listIterator.next();//next掉
+					if (textNode.getValue().startsWith("医生")) {
+						doctor = textNode.getValue().split(":")[1];
+					}
 				}
 				//最后一个pre回来
 				listIterator.previous();
@@ -398,6 +501,7 @@ public class Main {
 						}
 						dictionary = new Dictionary();
 						dictionary.setDepartName(departName);
+						dictionary.setDoctor(doctor);
 						dictionary.setDicName(list.get(0).getValue());
 						Optional<TextNode> optional = list.stream().filter(t->{return (t.getLeft()>=200&&t.getLeft()<=220);}).findFirst();
 						if (optional.isPresent()) {//检查结果
@@ -451,12 +555,19 @@ public class Main {
 			}
 		}
 		dictionaries.forEach(System.out::println);
-		System.out.println(dictionaries.size());
+		reportResultData.setDictionaries(dictionaries);
+		reportResultData.setSourceUser(sourceUser);
+		//System.out.println(dictionaries.size());
+		//System.out.println(sourceUser);
+		System.out.println(reportResultData);
 	}
 	
 	@Test
-	public void test05() {
-		
+	public void test05() throws ParseException {
+		String time = "2017-08-15 4:15:55";
+		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+		Date date = dateFormat.parse(time);
+		System.out.println(date);
 	}
 	
 	public static void main(String[] args) throws ParserConfigurationException, SAXException, IOException {
@@ -532,6 +643,7 @@ public class Main {
 				});
 			}
 		});
+		
 	}
 	
 

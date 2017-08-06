@@ -49,8 +49,19 @@ public class Dictionary {
 	 */
 	private Integer instGroup;
 
+	/**
+	 * 医生
+	 */
+	private String doctor;
 	
-	
+	public String getDoctor() {
+		return doctor;
+	}
+
+	public void setDoctor(String doctor) {
+		this.doctor = doctor;
+	}
+
 	public String getEnName() {
 		return enName;
 	}
