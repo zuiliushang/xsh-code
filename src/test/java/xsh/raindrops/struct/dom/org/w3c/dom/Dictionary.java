@@ -136,11 +136,8 @@ public class Dictionary {
 
 	@Override
 	public String toString() {
-		return "Dictionary [编号=" + dicCode + ", 项目名称=" + dicName + ", 单位=" + dicUnit + ", 英文名=" + enName
-				+ ", 检查结果=" + dicResult + ", 提示=" + tip + ", 参考结果=" + dicExplain + ", 科室="
-				+ departName + ", 组织机构=" + instGroup + "]";
+		return "Dictionary [编号=" + dicCode + ", 项目=" + dicName + ", 单位=" + dicUnit + ", 英文名=" + enName
+				+ ", 结果=" + dicResult + ", 提示=" + tip + ", 参考结果=" + dicExplain + ", 科室="
+				+ departName + ", 机构ID=" + instGroup + ", 医生=" + doctor + "]";
 	}
-	
-	
-	
 }

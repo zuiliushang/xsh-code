@@ -16,9 +16,11 @@ import java.util.ListIterator;
 import java.util.Optional;
 
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.soap.Text;
 
 import org.junit.Test;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -569,6 +571,470 @@ public class Main {
 		Date date = dateFormat.parse(time);
 		System.out.println(date);
 	}
+	
+	@Test
+	public void test06() throws ParserConfigurationException, SAXException, IOException {
+		ReportResultData reportResultData = new ReportResultData();
+		SourceUser sourceUser = new SourceUser();
+		
+		InputStream inputStream = Main.class.getClassLoader().getResourceAsStream("1018346.xml");
+		Document document = XmlUtil.getDocument(inputStream);
+		NodeList nodeList = document.getElementsByTagName("page");
+		// 定义双向链表存储
+		LinkedList<TextNode> textNodes = new LinkedList<>();
+		for (int i = 0; i < nodeList.getLength(); i++) {// 遍历所有page节点
+			Element pNode = (Element) nodeList.item(i);
+			NodeList pageNodeList = pNode.getElementsByTagName("text");
+			for (int j = 0; j < pageNodeList.getLength(); j++) {// 遍历每个page下的所有text节点
+				Element node = (Element) pageNodeList.item(j);
+				TextNode textNode = new TextNode();
+				textNode.setHeight(new Integer(node.getAttribute("height")));
+				textNode.setLeft(new Integer(node.getAttribute("left")));
+				textNode.setTop(new Integer(node.getAttribute("top")));
+				textNode.setWidth(new Integer(node.getAttribute("width")));
+				textNode.setValue(node.getFirstChild().getNodeValue().trim());
+				textNode.setPageIndex(new Integer(pNode.getAttribute("number")));
+				textNodes.add(textNode);
+			}
+		}
+		ListIterator<TextNode> listIterator = textNodes.listIterator();
+		int index = 0;// 记录迭代器位置
+		String departName = null;//科室
+		int top = 0;
+		int page = 0;
+		List<Dictionary> dictionaries = new ArrayList<>();//结果集
+		while (listIterator.hasNext()) {
+			TextNode textNode = listIterator.next();
+			while (listIterator.hasNext()&&textNode.getPageIndex()==1) {//从第一页获取User信息
+				if (313<textNode.getTop()&&textNode.getTop()<313+textNode.getHeight()) {
+					if (305<textNode.getLeft()&&textNode.getLeft()<305+textNode.getWidth()) {//找到姓名
+						sourceUser.setName(textNode.getValue());
+					}else if (430<textNode.getLeft()&&textNode.getLeft()<430+textNode.getWidth()) {//找到性别
+						sourceUser.setGender(textNode.getValue());
+					}
+				}else if (340<textNode.getTop()&&textNode.getTop()<340+textNode.getHeight()) {
+					if (295<textNode.getLeft()&&textNode.getLeft()<295+textNode.getWidth()) {//找到体检编号报告编号
+						reportResultData.setReportCode(textNode.getValue());
+					}
+				}else if (431<textNode.getTop()&&textNode.getTop()<431+textNode.getHeight()) {
+					if (320<textNode.getLeft()&&textNode.getLeft()<320+textNode.getWidth()) {//体检日期
+						reportResultData.setExamTime(DateUtil.StringToDate(textNode.getValue()));
+					}
+				}
+				textNode = listIterator.next();
+			}
+			if (textNode.getValue().startsWith("主检报告")) {//找体检结果和体检建议
+				StringBuffer suggestBuffer = new StringBuffer();
+				StringBuffer resultBuffer = new StringBuffer();
+				while (listIterator.hasNext()) {
+					textNode = listIterator.next();
+					if (textNode.getLeft()==60) {//结果总结
+						resultBuffer.append(textNode.getValue());
+					}else if (textNode.getLeft()==126) {//体检建议
+						suggestBuffer.append(textNode.getValue());
+					}
+					if (textNode.getValue().startsWith("温馨提示")) {//结束
+						reportResultData.setSuggest(suggestBuffer.toString());
+						reportResultData.setSummary(resultBuffer.toString());
+						break;
+					}
+				}
+			}
+			
+			//////////
+			///开始寻找体检项 
+			if (textNode.getLeft()==56&&textNode.getHeight()==15) {//找到科室 第一种情况 left="56"  height="15"
+				departName = textNode.getValue();//获取科室
+				List<Dictionary> tmpDictionaries = new ArrayList<>();
+				while (listIterator.hasNext()) {//从下面开始检索 能够获取检查项 和医生
+					textNode = listIterator.next();
+					if ((departName.equals("甲状腺功能五项")||departName.equals("前列腺肿瘤检测组合"))&&textNode.getLeft()==33&&!textNode.getValue().startsWith("项目")&&textNode.getHeight()==11) {
+						top = textNode.getTop();//获取TOP
+						List<TextNode> tmpNodes = new ArrayList<>();
+						// 往前找同一行的检查项
+						tmpNodes.add(textNode);//把检查项给记录下来
+						index = listIterator.nextIndex();
+						listIterator.previous();
+						while (listIterator.hasPrevious()) {//有些体检结果跑前面了
+							TextNode prenode = listIterator.previous();
+							if (prenode.getTop()>top-7&&prenode.getTop()<top+7) {//同一行
+								tmpNodes.add(prenode);
+							}else {
+								listIterator = textNodes.listIterator(index);
+								break;
+							}
+						}
+						// 往后找同一行的检查项
+						while (listIterator.hasNext()) {
+							textNode = listIterator.next();
+							if (textNode.getTop()>top-7&&textNode.getTop()<top+12) {//同一行
+								tmpNodes.add(textNode);
+							}else {
+								listIterator.previous();
+								break;
+							}
+						}
+						// 排序配置dictionary
+						tmpNodes.sort(Comparator.comparing(TextNode::getLeft));
+						Iterator<TextNode> tmpIterator = tmpNodes.iterator();
+						Dictionary dictionary = new Dictionary();
+						while (tmpIterator.hasNext()&&tmpNodes.size()>1) {// 有两个检查项
+							TextNode tmpNode = tmpIterator.next();
+							if (tmpNode.getLeft() == 33) {
+								if (!StringUtils.isEmpty(dictionary.getDicName())) {
+									dictionary.setDicName(dictionary.getDicName()+tmpNode.getValue());// 检查项
+								}else {
+									dictionary.setDicName(tmpNode.getValue());// 检查项
+								}
+							} else if (tmpNode.getLeft() >156
+									&& tmpNode.getLeft() < 180) {
+								dictionary.setDicResult(tmpNode.getValue());// 测量结果
+							} else if (tmpNode.getLeft() > 210
+									&& tmpNode.getLeft() < 238) {
+								dictionary.setDicExplain(tmpNode.getValue());// 参考结果
+							} else if (tmpNode.getLeft() > 538) {
+								dictionary.setDicUnit(tmpNode.getValue());// 单位
+							} 
+						}
+						dictionary.setDepartName(departName);// 科室名称
+						tmpDictionaries.add(dictionary);// 把老的项添加了
+					}else if (textNode.getLeft()==30&&!textNode.getValue().startsWith("项目")&&textNode.getHeight()==11) {//一种是项目在前面30的位置
+						Dictionary dictionary = new Dictionary();
+						dictionary.setDepartName(departName);//科室名
+						dictionary.setDicName(textNode.getValue());
+						while (listIterator.hasNext()) {
+							TextNode tmpNode = listIterator.next();
+							if (tmpNode.getTop()==textNode.getTop()) {//同一行
+								if (tmpNode.getLeft()==110) {//结果
+									dictionary.setDicResult(tmpNode.getValue());
+								}else if (tmpNode.getLeft()==305) {//项目
+									tmpDictionaries.add(dictionary);
+									dictionary = new Dictionary();
+									dictionary.setDicName(tmpNode.getValue());
+								}else if (tmpNode.getLeft()==385) {//结果
+									dictionary.setDicResult(tmpNode.getValue());
+								}
+							}
+							if (tmpNode.getTop()!=textNode.getTop()) {//换行了
+								listIterator.previous();
+								tmpDictionaries.add(dictionary);
+								break;
+							}
+						}
+					}else if (textNode.getLeft()==33&&!textNode.getValue().startsWith("项目")&&textNode.getHeight()==11) {//另外一种是项目在前面33的位置
+						top = textNode.getTop();//获取TOP
+						List<TextNode> tmpNodes = new ArrayList<>();
+						// 往前找同一行的检查项
+						tmpNodes.add(textNode);//把检查项给记录下来
+						index = listIterator.nextIndex();
+						while (listIterator.hasPrevious()) {//有些体检结果跑前面了
+							TextNode prenode = listIterator.previous();
+							if (prenode.getTop()>top-7&&prenode.getTop()<top+7) {//同一行
+								tmpNodes.add(prenode);
+							}else {
+								listIterator = textNodes.listIterator(index);
+								break;
+							}
+						}
+						// 往后找同一行的检查项
+						while (listIterator.hasNext()) {
+							textNode = listIterator.next();
+							if (textNode.getTop()>top-7&&textNode.getTop()<top+7) {//同一行
+								tmpNodes.add(textNode);
+							}else {
+								break;
+							}
+						}
+						// 排序配置dictionary
+						tmpNodes.sort(Comparator.comparing(TextNode::getLeft));
+						Iterator<TextNode> tmpIterator = tmpNodes.iterator();
+						Dictionary dictionary = new Dictionary();
+						while (tmpIterator.hasNext()) {// 有两个检查项
+							TextNode tmpNode = tmpIterator.next();
+							if (tmpNode.getLeft() == 33) {
+								dictionary.setDicName(tmpNode.getValue());// 检查项
+							} else if (tmpNode.getLeft() >156
+									&& tmpNode.getLeft() < 180) {
+								dictionary.setDicResult(tmpNode.getValue());// 测量结果
+							} else if (tmpNode.getLeft() > 215
+									&& tmpNode.getLeft() < 238) {
+								dictionary.setDicExplain(tmpNode.getValue());// 参考结果
+							} else if (tmpNode.getLeft() > 265
+									&& tmpNode.getLeft() < 305) {
+								dictionary.setDicUnit(tmpNode.getValue());// 单位
+							} else if (tmpNode.getLeft() == 308) {// 新的体检项
+								dictionary.setDepartName(departName);
+								tmpDictionaries.add(dictionary);// 把老的项添加了
+								dictionary = new Dictionary();// 创建新的项
+								dictionary.setDicName(tmpNode.getValue());// 检查项
+							} else if (tmpNode.getLeft() > 446 - tmpNode.getWidth()
+									&& tmpNode.getLeft() < 446 + tmpNode.getWidth()) {
+								dictionary.setDicResult(tmpNode.getValue());// 测量结果
+							} else if (tmpNode.getLeft() > 507 - tmpNode.getWidth()
+									&& tmpNode.getLeft() < 507 + tmpNode.getWidth()) {
+								dictionary.setDicExplain(tmpNode.getValue());// 参考结果
+							} else if (tmpNode.getLeft() > 551 - tmpNode.getWidth()
+									&& tmpNode.getLeft() < 551 + tmpNode.getWidth()) {
+								dictionary.setDicUnit(tmpNode.getValue());// 单位
+							}
+						}
+						if (tmpNodes.size()>1) {
+							dictionary.setDepartName(departName);// 科室名称
+							tmpDictionaries.add(dictionary);// 把老的项添加了
+						}
+					}
+					if (textNode.getValue().contains("操作者：")||textNode.getValue().contains("医生：")) {//如果是找到了医生
+						String tmpStr = textNode.getValue().split("：")[1];
+						tmpStr = tmpStr.replaceAll(" ", "");
+						tmpStr = tmpStr.replaceAll("审核者", "");
+						String doctor = tmpStr;
+						tmpDictionaries.forEach(d->{
+							d.setDoctor(doctor);
+						});
+						dictionaries.addAll(tmpDictionaries);//第一种情况的体检项添加进去
+						break;
+					}
+					if (textNode.getLeft()==56&&textNode.getHeight()==15) {
+						departName = textNode.getValue();
+					}
+				}
+			}else if (textNode.getLeft()==85&&textNode.getHeight()==27) {//第二种情况是在体检报告里
+				departName = textNode.getValue();//得到科室并且当做检查项
+				Dictionary dictionary = new Dictionary();
+				dictionary.setDepartName(departName);
+				dictionary.setDicName(departName);
+				boolean key = false;
+				StringBuffer resultSB = new StringBuffer();
+				if (departName.equals("肺功能检查")) {
+					while (listIterator.hasNext()) {
+						textNode = listIterator.next();
+						if (textNode.getLeft()==45) {
+							resultSB.append(textNode.getValue());
+						}
+						if (textNode.getLeft()==419&&textNode.getHeight()==13) {
+							if (textNode.getValue().contains("操作者：")||textNode.getValue().contains("医生：")) {//如果是找到了医生
+								String tmpStr = textNode.getValue().split("：")[1];
+								tmpStr = tmpStr.replaceAll(" ", "");
+								tmpStr = tmpStr.replaceAll("审核者", "");
+								String doctor = tmpStr;
+								dictionary.setDicResult(resultSB.toString());
+								dictionary.setDoctor(doctor);
+								dictionaries.add(dictionary);//第一种情况的体检项添加进去
+								break;
+							}
+						}
+					}
+				}else {
+					while (listIterator.hasNext()) {
+						textNode = listIterator.next();
+						if (key&&textNode.getLeft()==45) {
+							resultSB.append(textNode.getValue());
+						}
+						if (textNode.getValue().equals("【印 象】")) {
+							key=true;
+						}
+						if (textNode.getLeft()==419&&textNode.getHeight()==13) {
+							if (textNode.getValue().contains("操作者：")||textNode.getValue().contains("医生：")) {//如果是找到了医生
+								String tmpStr = textNode.getValue().split("：")[1];
+								tmpStr = tmpStr.replaceAll(" ", "");
+								tmpStr = tmpStr.replaceAll("审核者", "");
+								String doctor = tmpStr;
+								dictionary.setDicResult(resultSB.toString());
+								dictionary.setDoctor(doctor);
+								dictionaries.add(dictionary);//第一种情况的体检项添加进去
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+		reportResultData.setDictionaries(dictionaries);
+		reportResultData.setSourceUser(sourceUser);
+		System.out.println(reportResultData);
+	}
+	
+	
+	
+	/*
+	 
+	 if (textNode.getLeft()==75&&textNode.getHeight()==27) {//找到科室 第一种情况 left=75并且字体高度27
+				while (listIterator.hasNext()) {//从下面开始检索 能够获取检查项 和医生
+					departName = textNode.getValue();//获取科室
+					textNode = listIterator.next();
+					List<Dictionary> tmpDictionaries = new ArrayList<>();
+					if (textNode.getLeft()==30&&!textNode.getValue().startsWith("项目")) {//一种是项目在前面30的位置
+						while (listIterator.hasNext()) {
+							Dictionary dictionary = new Dictionary();
+							dictionary.setDepartName(departName);//科室名
+							TextNode tmpNode = listIterator.next();
+							if (tmpNode.getTop()==textNode.getTop()) {
+								if (tmpNode.getLeft()==110) {//结果
+									dictionary.setDicResult(tmpNode.getValue());
+									tmpDictionaries.add(dictionary);
+								}else if (tmpNode.getLeft()==305) {//项目
+									dictionary.setDicName(tmpNode.getValue());
+								}else if (tmpNode.getLeft()==385) {//结果
+									dictionary.setDicResult(tmpNode.getValue());
+									tmpDictionaries.add(dictionary);
+								}
+							}
+							if (tmpNode.getTop()!=textNode.getTop()) {//换行了
+								listIterator.previous();
+								break;
+							}
+						}
+					}
+					if (textNode.getLeft()==33&&!textNode.getValue().startsWith("项目")) {//另外一种是项目在前面33的位置
+						top = textNode.getTop();//获取TOP
+						List<TextNode> tmpNodes = new ArrayList<>();
+						// 往前找同一行的检查项
+						tmpNodes.add(textNode);//把检查项给记录下来
+						index = listIterator.nextIndex();
+						while (listIterator.hasPrevious()) {//有些体检结果跑前面了
+							TextNode prenode = listIterator.previous();
+							if (prenode.getTop()>top-5&&prenode.getTop()<top+5) {//同一行
+								tmpNodes.add(prenode);
+							}else {
+								listIterator = textNodes.listIterator(index);
+								break;
+							}
+						}
+						// 往后找同一行的检查项
+						while (listIterator.hasNext()) {
+							textNode = listIterator.next();
+							if (textNode.getTop()>top-5&&textNode.getTop()<top+5) {//同一行
+								tmpNodes.add(textNode);
+							}else {
+								break;
+							}
+						}
+						// 排序配置dictionary
+						tmpNodes.sort(Comparator.comparing(TextNode::getLeft));
+						Iterator<TextNode> tmpIterator = tmpNodes.iterator();
+						Dictionary dictionary = new Dictionary();
+						if (textNode.getValue()=="") {
+							
+						}else {
+							while (tmpIterator.hasNext()) {//有两个检查项
+								TextNode tmpNode = tmpIterator.next();
+								if (tmpNode.getLeft()==33) {
+									dictionary.setDicName(tmpNode.getValue());//检查项
+								}else if (tmpNode.getLeft()>174-tmpNode.getWidth()&&tmpNode.getLeft()<174+tmpNode.getWidth()) {
+									dictionary.setDicResult(tmpNode.getValue());//测量结果
+								}else if (tmpNode.getLeft()>238-tmpNode.getWidth()&&tmpNode.getLeft()<238+tmpNode.getWidth()) {
+									dictionary.setDicExplain(tmpNode.getValue());//参考结果
+								}else if (tmpNode.getLeft()>276-tmpNode.getWidth()&&tmpNode.getLeft()<276+tmpNode.getWidth()) {
+									dictionary.setDicUnit(tmpNode.getValue());//单位
+								}else if (tmpNode.getLeft()==308) {//新的体检项
+									dictionary.setDepartName(departName);
+									dictionaries.add(dictionary);//把老的项添加了
+									dictionary = new Dictionary();//创建新的项
+									dictionary.setDicName(tmpNode.getValue());//检查项
+								}else if (tmpNode.getLeft()>446-tmpNode.getWidth()&&tmpNode.getLeft()<446+tmpNode.getWidth()) {
+									dictionary.setDicResult(tmpNode.getValue());//测量结果
+								}else if (tmpNode.getLeft()>507-tmpNode.getWidth()&&tmpNode.getLeft()<507+tmpNode.getWidth()) {
+									dictionary.setDicExplain(tmpNode.getValue());//参考结果
+								}else if (tmpNode.getLeft()>551-tmpNode.getWidth()&&tmpNode.getLeft()<551+tmpNode.getWidth()) {
+									dictionary.setDicUnit(tmpNode.getValue());//单位
+								}
+							}
+							dictionary.setDepartName(departName);//科室名称
+							dictionaries.add(dictionary);//把老的项添加了
+						}
+					}
+					
+					if (textNode.getLeft()==415) {//如果是找到了医生
+						String doctor = textNode.getValue().split("：")[1];
+						tmpDictionaries.forEach(d->{
+							d.setDoctor(doctor);
+						});
+						dictionaries.addAll(tmpDictionaries);//第一种情况的体检项添加进去
+						break;
+					} 
+				}
+			}else if (textNode.getLeft()==85&&textNode.getHeight()==27) {//找到科室 第二种情况 left=85并且字体高度27
+				if (textNode.getValue().equals("耳鼻喉科检查（无音叉）")) {//耳鼻喉科检查（无音叉）的结果结构不一样 耳：  耳廓： 未见异常
+					List<Dictionary> tmpDictionaries = new ArrayList<>();
+					while (listIterator.hasNext()) {
+						departName = textNode.getValue();//获取科室
+						textNode = listIterator.next();
+						if (textNode.getValue().contains("检查所见")) {//从检查所见开始
+							while (listIterator.hasNext()) {
+								textNode = listIterator.next();
+								if (textNode.getLeft()==45&&!textNode.getValue().contains("印 象")) {
+									String tmpValue = textNode.getValue();
+									tmpValue.replaceAll(" ", "");//去掉空格
+									String[] tmpArr = tmpValue.split("：");//分解
+									Dictionary dictionary = new Dictionary();
+									if (tmpArr.length>=2) {
+										dictionary.setDicResult(tmpArr[tmpArr.length-1]);//获取
+										dictionary.setDicName(tmpArr[tmpArr.length-2]);//检查项
+										tmpDictionaries.add(dictionary);
+									}
+								}
+								if (textNode.getValue().contains("印 象")) {
+									break;
+								}
+							}
+						}
+						if (textNode.getLeft()==419) {//找到医生
+							String doctor = textNode.getValue().split("：")[1];
+							tmpDictionaries.forEach(d->{
+								d.setDoctor(doctor);
+							});
+							dictionaries.addAll(tmpDictionaries);
+							break;
+						}
+					}
+				}else if (textNode.getValue().equals("骨密度检查")) {//骨密度检查他喵也是单独一种结果结构要排除出来
+					while (listIterator.hasNext()) {
+						departName = textNode.getValue();//获取科室
+						textNode = listIterator.next();
+						Dictionary dictionary = new Dictionary();
+						if (textNode.getValue().contains("检查所见")) {//从检查所见开始
+							while (listIterator.hasNext()) {
+								textNode = listIterator.next();
+								if (textNode.getValue().contains("印 象")) {
+									break;
+								}
+								
+								dictionary.setDepartName(departName);
+								dictionary.setDicName(departName);//把科室当成检查项
+								dictionary.setDicResult(textNode.getValue());
+								
+							}
+						}
+						if (textNode.getLeft()==419) {//如果是找到了医生
+							String doctor = textNode.getValue().split("：")[1];
+							dictionary.setDoctor(doctor);
+							dictionaries.add(dictionary);
+							break;
+						}
+					}
+				}else if (textNode.getValue().equals("肺功能检查")) {//肺功能检查特特瞄也是单独一种结果结构
+					while (listIterator.hasNext()) {
+						departName = textNode.getValue();//获取科室
+						textNode = listIterator.next();
+						Dictionary dictionary = new Dictionary();
+						if (textNode.getLeft()==45) {
+							dictionary.setDepartName(departName);
+							dictionary.setDicName(departName);//把科室当成检查项
+							dictionary.setDicResult(textNode.getValue());
+						}
+						if (textNode.getLeft()==419) {//如果是找到了医生
+							String doctor = textNode.getValue().split("：")[1];
+							dictionary.setDoctor(doctor);
+							dictionaries.add(dictionary);
+							break;
+						}
+					}
+				}
+				
+			}
+	 
+	 
+	 * */
 	
 	public static void main(String[] args) throws ParserConfigurationException, SAXException, IOException {
 		InputStream inputStream = Main.class.getClassLoader().getResourceAsStream("test.xml");
