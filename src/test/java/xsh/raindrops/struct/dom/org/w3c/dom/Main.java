@@ -26,6 +26,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import xsh.raindrops.project.util.DateStyle;
 import xsh.raindrops.project.util.DateUtil;
 
 /**
@@ -109,64 +110,118 @@ public class Main {
 		List<Dictionary> dictionaries = new ArrayList<>();//结果集
 		while (listIterator.hasNext()) {
 			TextNode nextNode = listIterator.next();// 获取下个节点
-			if (nextNode.getPageIndex()==1 && listIterator.hasNext()) {//从第一页找用户数据
-				if (nextNode.getValue().equals("健康体检报告")) {
-					TextNode tmpNode = null;
-					List<TextNode> tmpArray = null;
-					while (listIterator.hasNext()) {
-						TextNode pageOneNode = listIterator.next();
-						if (tmpNode!=null && (tmpNode.getTop()+tmpNode.getHeight())>=pageOneNode.getTop() && tmpNode.getTop() <= pageOneNode.getTop()) {
-							tmpArray.add(pageOneNode);
-						}else {
-							
-							if (CollectionUtils.isEmpty(tmpArray)) {
-								tmpArray.sort(Comparator.comparing(TextNode::getLeft));
-								if (tmpArray.size()>=2) {
-									TextNode itemTitle = tmpArray.get(0);
-									String itemStr = itemTitle.getValue().replaceAll(" ", "");
-									if (itemStr.startsWith("体检编号")) {
-										reportResultData.setReportCode(tmpArray.get(1).getValue());
-									}else if (itemStr.startsWith("姓名")) {
-										sourceUser.setName(tmpArray.get(1).getValue());
-									}else if (itemStr.startsWith("姓名")){
-										
-									}
+			// 从第一页获取个人信息
+			// 从第一页找用户数据
+			if (nextNode.getValue().equals("健康体检报告")) {
+				TextNode tmpNode = null;
+				List<TextNode> tmpArray = null;
+				while (listIterator.hasNext() && nextNode.getPageIndex() == 1) {
+					nextNode = listIterator.next();
+					if (tmpNode != null && (tmpNode.getTop() + tmpNode.getHeight()) >= nextNode.getTop()
+							&& tmpNode.getTop() <= nextNode.getTop()) {
+						tmpArray.add(nextNode);
+					} else {
+						if (!CollectionUtils.isEmpty(tmpArray)) {
+							tmpArray.sort(Comparator.comparing(TextNode::getLeft));
+							if (tmpArray.size() >= 2) {
+								TextNode itemTitle = tmpArray.get(0);
+								String itemStr = itemTitle.getValue().replaceAll(" ", "");
+								if (itemStr.startsWith("体检编号")) {
+									reportResultData.setReportCode(tmpArray.get(1).getValue());
+								} else if (itemStr.startsWith("姓名")) {
+									sourceUser.setName(tmpArray.get(1).getValue());
+								} else if (itemStr.startsWith("性别")) {
+									sourceUser.setGender(tmpArray.get(1).getValue());
+								} else if (itemStr.startsWith("单位编号")) {
+									reportResultData.setInstitutionCode(tmpArray.get(1).getValue());
+								} else if (itemStr.startsWith("体检日期")) {
+									reportResultData.setExamTime(DateUtil.StringToDate(tmpArray.get(1).getValue(),
+											DateStyle.YYYYMMdd_Cn.getValue()));
 								}
+								/*
+								 * if (tmpArray.size() >= 4) { if (tmpArray.get(2).getValue().replaceAll(" ",
+								 * "").startsWith("年龄")) { sourceUser.set } }
+								 */
 							}
-							tmpArray = new ArrayList<>();
-							tmpNode = pageOneNode;
-							tmpArray.add(tmpNode);
 						}
+						tmpArray = new ArrayList<>();
+						tmpNode = nextNode;
+						tmpArray.add(tmpNode);
 					}
 				}
 			}
-			
-			
-			
+			// 获取小结
+			StringBuffer sgb = new StringBuffer();
+			while (nextNode.getValue().startsWith("体检小结") && listIterator.hasNext()) {
+				TextNode sugNode = listIterator.next();
+				// 页头页尾不捣乱
+				if (sugNode.getTop() > 50 && sugNode.getTop() < 820) {
+					if (sugNode.getLeft() != 86) {
+						reportResultData.setSummary(sgb.toString());
+						listIterator.previous();
+						break;
+					}
+					sgb.append(sugNode.getValue());
+				}
+			}
+
+			// 获取体检建议
+			sgb = new StringBuffer();
+			while (nextNode.getValue().startsWith("总检建议") && listIterator.hasNext()) {
+				TextNode sugNode = listIterator.next();
+				// 页头页尾不捣乱
+				if (sugNode.getTop() > 50 && sugNode.getTop() < 820) {
+					if (sugNode.getLeft() != 86) {
+						reportResultData.setSuggest(sgb.toString());
+						listIterator.previous();
+						break;
+					}
+					sgb.append(sugNode.getValue());
+				}
+			}
+
 			if (nextNode.getValue().equals("项目名称")) {// 从项目名称开始
 				// 往前获取科室项 1):记录当前迭代器位置. 2):往前找寻找科室项 3):恢复当前位置
-				String departName;
+				String departName = null;
+				String doctor = null;
 				// TODO: pdf的科室必须单独一行
 				if (listIterator.hasPrevious()) {// 必须是前面有科室才获取
 					index = listIterator.nextIndex();// 记录状态
 					TextNode firstPreNode = listIterator.previous();
-					departName = "";
 					if (listIterator.hasPrevious()) {// 如果前面还有
-						// 继续往上获取node节点
+						// 继续往上获取node节点 TODO: 如果前面没有科室 那么需要修改逻辑(现在默认是都有科室)
 						while (listIterator.hasPrevious()) {
 							TextNode secondPreNode = listIterator.previous();
 							if (firstPreNode.getLeft() == secondPreNode.getLeft()) {
 								// 如果 两个节点在同一 left 那么是名称太长导致换行
 								// 所以要把它拼接在前面
 								// 虽然会多创建String对象 但是一般不会很多 所以用 + 是最好选择
-								departName = secondPreNode.getValue() + departName;
+								if (StringUtils.isEmpty(departName)) {
+									departName = secondPreNode.getValue();
+								}else {
+									departName = secondPreNode.getValue() + departName;
+								}
+								 
+								// 将firstNode重置
+								firstPreNode = secondPreNode;
 								continue;
 							}
 							break;// 其他情况退出
 						}
+
+					}
+					// 往前找3项
+					int preIndex = 0;
+					while (listIterator.hasPrevious() && preIndex < 3) {
+						preIndex++;
+						TextNode tmpNode = listIterator.previous();
+						if (tmpNode.getLeft() == 128) {
+							doctor = tmpNode.getValue();
+						}
+
 					}
 					// 重置迭代器位置
-					listIterator = textNodes.listIterator(index-1);//项目名称都包含进来
+					listIterator = textNodes.listIterator(index - 1);// 项目名称都包含进来
 					/////////////////////////////////////////////////////////////////////////////////
 					// 寻找科室结束
 					/////////////////////////////////////////////////////////////////////////////////
@@ -178,32 +233,31 @@ public class Main {
 						TextNode maybeEndPointNode = listIterator.next();
 						// 往后寻找找到项目名称
 						if (maybeEndPointNode.getValue().startsWith("项目名称")) {
-							// 如果和项目名称同行的 那么直接next掉
+							// 如果和项目名称同行的 那么直接next掉(剔除掉垃圾多余信息)
 							boolean key = true;
 							if (listIterator.hasNext()) {
 								TextNode tmpValidateNode = listIterator.next();
 								while (key) {
 									key = false;
 									if (tmpValidateNode.getPageIndex() == maybeEndPointNode.getPageIndex()) {// 同一页
-										if (tmpValidateNode.getTop() >= maybeEndPointNode.getTop()) {//同一行
+										if (tmpValidateNode.getTop() >= maybeEndPointNode.getTop()) {// 同一行
 											if (tmpValidateNode.getTop() <= (maybeEndPointNode.getTop()
 													+ maybeEndPointNode.getHeight())) {
 												key = true;
-												tmpValidateNode = listIterator.next();//同一行过滤(next掉)
+												tmpValidateNode = listIterator.next();// 同一行过滤(next掉)
 											}
 										}
 									}
 								}
 							}
-							if (key==false) {
-								listIterator.previous();//把多next掉的pre回来
+							if (key == false) {
+								listIterator.previous();// 把多next掉的pre回来
 							}
-							continue;//已经找到了项目名称 并不需要往下走
+							continue;// 已经找到了项目名称 并不需要往下走
 						}
 						// 往后寻找直到找到 "小结"
 						if (maybeEndPointNode.getValue().startsWith("小结")) {
 							// TODO: 小结在这里往下遍历可以取到完整小结 暂时不做小结业务
-
 							break;
 						}
 						// 页头页尾不捣乱
@@ -218,35 +272,35 @@ public class Main {
 					// 局部有
 					List<List<TextNode>> rangeLists = new ArrayList<>();
 					List<TextNode> rangeList = new ArrayList<>();
-					TextNode headNode = null;//从第一个开始
+					TextNode headNode = null;// 从第一个开始
 					int top = 0;
 					int bottom = 0;
 					Iterator<TextNode> iterator = tmpResultNodes.iterator();
 					while (iterator.hasNext()) {
-						TextNode n = iterator.next();//下一个
+						TextNode n = iterator.next();// 下一个
 						// 分行
 						if (rangeList.size() == 0) {// 为空 开始一行
-							headNode = n;//每行初始化
-							top = headNode.getTop();//每行初始化
-							bottom = headNode.getTop() + headNode.getHeight();//每行初始化
-							rangeList.add(headNode);//加入队列头部中
-						} else {//不是第一个
+							headNode = n;// 每行初始化
+							top = headNode.getTop();// 每行初始化
+							bottom = headNode.getTop() + headNode.getHeight();// 每行初始化
+							rangeList.add(headNode);// 加入队列头部中
+						} else {// 不是第一个
 							if (bottom >= n.getTop() && n.getTop() >= top
 									&& headNode.getPageIndex() == n.getPageIndex()) {// 与头部headNode同一行(上下在同一行
 								rangeList.add(n);
-								//最后一行
-								if (rangeList.size()>1&&!iterator.hasNext()) {
-									rangeLists.add(rangeList);//结束 
+								// 最后一行
+								if (rangeList.size() > 1 && !iterator.hasNext()) {
+									rangeLists.add(rangeList);// 结束
 								}
-							} else {//不同行
-								//如果没有下一个 那么这个属性单独作为一行
+							} else {// 不同行
+								// 如果没有下一个 那么这个属性单独作为一行
 								headNode = n;
 								top = headNode.getTop();
 								bottom = headNode.getTop() + headNode.getHeight();
 								if (!iterator.hasNext()) {// 最后一行
-									rangeLists.add(rangeList);//消化前一行
+									rangeLists.add(rangeList);// 消化前一行
 									rangeLists.add(Arrays.asList(headNode));
-								}else {//如果有下一个 
+								} else {// 如果有下一个
 									rangeLists.add(rangeList);
 									rangeList = new ArrayList<>();// 空
 									rangeList.add(headNode);
@@ -254,60 +308,71 @@ public class Main {
 							}
 						}
 					}
-					//开始遍历每一行
+					// 开始遍历每一行
 					Dictionary dictionary = null;
 					Iterator<List<TextNode>> nodeListIterator = rangeLists.iterator();
 					while (nodeListIterator.hasNext()) {
 						List<TextNode> list = nodeListIterator.next();
-						//每一行根据left进行排序 保证 项目名称 检查结果 参考结果 提示 单位 顺序排序 
+						// 每一行根据left进行排序 保证 项目名称 检查结果 参考结果 提示 单位 顺序排序
 						list.sort(Comparator.comparing(TextNode::getLeft));
-						if (list.size()>1) {
-							if (dictionary!=null) {//不为空就存起来
+						if (list.size() > 1) {
+							if (dictionary != null) {// 不为空就存起来
 								dictionaries.add(dictionary);
 							}
 							dictionary = new Dictionary();
 							dictionary.setDepartName(departName);
+							dictionary.setDoctor(doctor);
 							dictionary.setDicName(list.get(0).getValue());
-							
-							Optional<TextNode> optional = list.stream().filter(t->{return (t.getLeft()>=175&&t.getLeft()<=195);}).findFirst();
-							if (optional.isPresent()) {//英文名
+
+							Optional<TextNode> optional = list.stream().filter(t -> {
+								return (t.getLeft() >= 175 && t.getLeft() <= 195);
+							}).findFirst();
+							if (optional.isPresent()) {// 英文名
 								dictionary.setEnName(optional.get().getValue());
 							}
-							optional = list.stream().filter(t->{return (t.getLeft()>=234&&t.getLeft()<=259);}).findFirst();
-							if (optional.isPresent()) {//检查结果
+							optional = list.stream().filter(t -> {
+								return (t.getLeft() >= 234 && t.getLeft() <= 259);
+							}).findFirst();
+							if (optional.isPresent()) {// 检查结果
 								dictionary.setDicResult(optional.get().getValue());
 							}
-							optional = list.stream().filter(t->{return (t.getLeft()>=380&&t.getLeft()<=400);}).findFirst();
-							if (optional.isPresent()) {//提示
+							optional = list.stream().filter(t -> {
+								return (t.getLeft() >= 380 && t.getLeft() <= 400);
+							}).findFirst();
+							if (optional.isPresent()) {// 提示
 								dictionary.setTip(optional.get().getValue());
 							}
-							optional = list.stream().filter(t->{return (t.getLeft()>=420&&t.getLeft()<=490);}).findFirst();
-							if (optional.isPresent()) {//参考结果
+							optional = list.stream().filter(t -> {
+								return (t.getLeft() >= 420 && t.getLeft() <= 490);
+							}).findFirst();
+							if (optional.isPresent()) {// 参考结果
 								dictionary.setDicExplain(optional.get().getValue());
 							}
-							optional = list.stream().filter(t->{return (t.getLeft()>=521);}).findFirst();
-							if (optional.isPresent()) {//单位
+							optional = list.stream().filter(t -> {
+								return (t.getLeft() >= 521);
+							}).findFirst();
+							if (optional.isPresent()) {// 单位
 								dictionary.setDicUnit(optional.get().getValue());
 							}
-							//最后一行 有可能没有下一个
+							// 最后一行 有可能没有下一个
 							if (!nodeListIterator.hasNext()) {
 								dictionaries.add(dictionary);
 							}
-						}else if (list.size()==1) {//只有一个大小 那么拼接在对应的字段后面
+						} else if (list.size() == 1) {// 只有一个大小 那么拼接在对应的字段后面
 							TextNode finalNode = list.get(0);
 							int left = list.get(0).getLeft();
-							if (left>=175&&left<=195) {//英文
-								dictionary.setEnName(dictionary.getEnName()+finalNode.getValue());
-							}else if (left>=234 && left <=259) {
-								dictionary.setDicResult(dictionary.getDicResult()+finalNode.getValue());
-							}else if (left>=380 && left <= 400) {
-								dictionary.setTip(dictionary.getTip()+finalNode.getValue());
-							}else if (left>=420 && left <= 490){
-								dictionary.setDicExplain(dictionary.getDicExplain()+finalNode.getValue());
-							}else if (left >= 521) {
-								dictionary.setDicUnit(dictionary.getDicUnit()+finalNode.getValue());
+							if (left >= 175 && left <= 195) {// 英文
+								dictionary.setEnName(dictionary.getEnName() + finalNode.getValue());
+							} else if (left >= 234 && left <= 259) {
+								dictionary.setDicResult(dictionary.getDicResult() + finalNode.getValue());
+							} else if (left >= 380 && left <= 400) {
+								dictionary.setTip(dictionary.getTip() + finalNode.getValue());
+							} else if (left >= 420 && left <= 490) {
+								dictionary.setDicExplain(dictionary.getDicExplain() + finalNode.getValue());
+							} else if (left >= 521) {
+								dictionary.setDicUnit(dictionary.getDicUnit() + finalNode.getValue());
 							}
-							if (!nodeListIterator.hasNext()) {//如果没有下一行了 那么存起来
+							if (!nodeListIterator.hasNext()) {// 如果没有下一行了 那么存起来
 								dictionaries.add(dictionary);
 							}
 						}
@@ -315,8 +380,10 @@ public class Main {
 				}
 			}
 		}
-		dictionaries.forEach(System.out::println);//得到结果
+		dictionaries.forEach(System.out::println);// 得到结果
 		System.out.println(dictionaries.size());
+		reportResultData.setDictionaries(dictionaries);
+		reportResultData.setSourceUser(sourceUser);
 	}
 
 	@Test
@@ -577,7 +644,7 @@ public class Main {
 		ReportResultData reportResultData = new ReportResultData();
 		SourceUser sourceUser = new SourceUser();
 		
-		InputStream inputStream = Main.class.getClassLoader().getResourceAsStream("1018346.xml");
+		InputStream inputStream = Main.class.getClassLoader().getResourceAsStream("101834511.xml");
 		Document document = XmlUtil.getDocument(inputStream);
 		NodeList nodeList = document.getElementsByTagName("page");
 		// 定义双向链表存储
@@ -643,7 +710,7 @@ public class Main {
 			
 			//////////
 			///开始寻找体检项 
-			if (textNode.getLeft()==56&&textNode.getHeight()==15) {//找到科室 第一种情况 left="56"  height="15"
+			if (textNode.getLeft()==56&&(textNode.getHeight()==15||textNode.getHeight()==16)) {//找到科室 第一种情况 left="56"  height="15"
 				departName = textNode.getValue();//获取科室
 				List<Dictionary> tmpDictionaries = new ArrayList<>();
 				while (listIterator.hasNext()) {//从下面开始检索 能够获取检查项 和医生
@@ -667,7 +734,7 @@ public class Main {
 						// 往后找同一行的检查项
 						while (listIterator.hasNext()) {
 							textNode = listIterator.next();
-							if (textNode.getTop()>top-7&&textNode.getTop()<top+12) {//同一行
+							if (textNode.getTop()>top-7&&textNode.getTop()<top+13) {//同一行
 								tmpNodes.add(textNode);
 							}else {
 								listIterator.previous();
@@ -710,6 +777,7 @@ public class Main {
 								}else if (tmpNode.getLeft()==305) {//项目
 									tmpDictionaries.add(dictionary);
 									dictionary = new Dictionary();
+									dictionary.setDepartName(departName);
 									dictionary.setDicName(tmpNode.getValue());
 								}else if (tmpNode.getLeft()==385) {//结果
 									dictionary.setDicResult(tmpNode.getValue());
