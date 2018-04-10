@@ -16,7 +16,6 @@ import java.io.IOException;
 public class CopyCharacter {
 	
 	public static void main(String[] args) throws IOException {
-		
 		FileReader reader = null;
 		FileWriter writer = null;
 		try {
@@ -34,7 +33,6 @@ public class CopyCharacter {
 				writer.close();
 			}
 		}
-		
 	}
 	
 }

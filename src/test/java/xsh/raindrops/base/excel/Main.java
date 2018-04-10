@@ -9,7 +9,7 @@ import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Row;
 import org.junit.Test;
 
-import xsh.raindrops.struct.dom.org.w3c.dom.Dictionary;
+import xsh.raindrops.struct.dom.org.w3c.dom.SourceDictionaryDTO;
 
 public class Main {
 	
@@ -24,7 +24,7 @@ public class Main {
 		}
 		while (iterator.hasNext()) {
 			Row row = iterator.next();
-			Dictionary dictionary = new Dictionary();
+			SourceDictionaryDTO dictionary = new SourceDictionaryDTO();
 			dictionary.setDepartName(row.getCell(9).getStringCellValue());
 			dictionary.setDicExplain(row.getCell(12).getStringCellValue());
 			dictionary.setDicName(row.getCell(10).getStringCellValue());

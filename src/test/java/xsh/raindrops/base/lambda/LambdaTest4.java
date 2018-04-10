@@ -1,5 +1,10 @@
 package xsh.raindrops.base.lambda;
 
+import java.util.List;
+import java.util.NavigableSet;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import org.junit.Test;
 
 /**
@@ -45,6 +50,22 @@ public class LambdaTest4 {
         isHigh1.and(User::isHigh).or(User::isHigh);*/
 	}
 	
+	public void test02() {
+		Stream<Integer> stream = Stream.of(1,2,3,4,5,6,7,8,9,9,10);
+		stream.distinct();
+	}
+	@Test
+	public void testFlagMap() {
+		Stream<Integer> stream = Stream.of(1,2,3,4,5,6,7,8,6,5,4,2,3,4,5,1,2,3,5,6,7);
+		stream.
+			collect(Collectors.groupingBy(Integer::intValue))
+			.entrySet()
+			.stream().flatMap((t1)->{
+				int[] sum = new int[] {0};
+				t1.getValue().forEach(v->sum[0]+=v);
+				return Stream.of(sum[0]);
+			}).forEach(System.out::println);;
+	}
 }
 
 class User{

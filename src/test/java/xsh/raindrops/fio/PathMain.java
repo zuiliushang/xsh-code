@@ -32,6 +32,8 @@ public class PathMain {
 		System.out.format("getParent: %s%n", fp.getParent());
 		System.out.format("getRoot: %s%n", fp.getRoot());
 		
+		//Joining2个PATH
+		
 	}
 	
 }

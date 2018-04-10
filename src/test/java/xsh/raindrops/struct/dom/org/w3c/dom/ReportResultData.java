@@ -8,7 +8,7 @@ public class ReportResultData {
 	/**
 	 * 文件里解析出来的体检项
 	 */
-	private List<Dictionary> dictionaries;
+	private List<SourceDictionaryDTO> dictionaries;
 	
 	/**
 	 * 文件里解析出来的用户信息
@@ -40,11 +40,11 @@ public class ReportResultData {
 	 */
 	private Date examTime;
 
-	public List<Dictionary> getDictionaries() {
+	public List<SourceDictionaryDTO> getDictionaries() {
 		return dictionaries;
 	}
 
-	public void setDictionaries(List<Dictionary> dictionaries) {
+	public void setDictionaries(List<SourceDictionaryDTO> dictionaries) {
 		this.dictionaries = dictionaries;
 	}
 

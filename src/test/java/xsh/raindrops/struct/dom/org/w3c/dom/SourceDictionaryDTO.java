@@ -3,7 +3,7 @@ package xsh.raindrops.struct.dom.org.w3c.dom;
 /**
  * @author Raindrops on 2017年7月26日
  */
-public class Dictionary {
+public class SourceDictionaryDTO {
 	/**
 	 * 编号
 	 */
