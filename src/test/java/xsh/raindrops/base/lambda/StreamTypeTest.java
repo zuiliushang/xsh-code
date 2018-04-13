@@ -23,7 +23,13 @@ public class StreamTypeTest {
         .map(e -> e * e)
         .peek(e -> System.out.println("Mapped value: " + e))
         .sum();
-
 	}
 
+	@Test
+	public void test1() {
+		Stream
+			.of(1,3,5,6,7,8,2,1,3,4)
+			.parallel()
+			.forEach(System.out::println);
+	}
 }
