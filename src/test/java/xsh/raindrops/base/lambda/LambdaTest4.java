@@ -1,5 +1,6 @@
 package xsh.raindrops.base.lambda;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableSet;
 import java.util.stream.Collectors;
@@ -66,11 +67,29 @@ public class LambdaTest4 {
 				return Stream.of(sum[0]);
 			}).forEach(System.out::println);;
 	}
+	
+	@Test
+	public void testCollect() {
+		Stream.of(new User("rain", "drops"),new User("roto","totos"),new User("hallo","wade"))
+			.collect(ArrayList::new, (list,i)->list.add(i.getName()), (t1,t2)->t1=t2)
+			.forEach(System.out::println);
+			
+	}
 }
 
 class User{
 	private String name;
 	private String info;
+	
+	public User() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+	public User(String name, String info) {
+		super();
+		this.name = name;
+		this.info = info;
+	}
 	public String getName() {
 		return name;
 	}

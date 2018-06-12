@@ -33,18 +33,22 @@ public class T01VolatileTest {
 	
 	private volatile int semaphore = 1;//可以去掉 volatile试试
 	
+	private  int semaphore2 = 1;
+	
 	public void shutdown() {
 		try {
 			Thread.sleep(3000);
 		} catch (InterruptedException e) {
 		}
-		semaphore = 2;
+		semaphore2 = 2;
+		//semaphore = 2;
+		
 		System.out.println(Thread.currentThread().getName() +  "turn off");
 	}
 	
 	public void run() {
 		long i = 0;
-		while (semaphore != 2) {
+		while (semaphore2 != 2 /*&& semaphore != 0*/) {
 			i++;
 		}
 		System.out.println(Thread.currentThread().getName() + "machine shutdown ... 执行了" + i + "次");

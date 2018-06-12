@@ -5,9 +5,11 @@ import java.util.Spliterator;
 import java.util.Spliterator.OfDouble;
 import java.util.Spliterators;
 import java.util.function.DoubleConsumer;
+import java.util.function.IntConsumer;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.junit.Test;
@@ -56,6 +58,13 @@ public class SpliteratorsTest {
 			.forEachRemaining(System.out::println);
 		Spliterators.spliteratorUnknownSize(Arrays.asList(1,2,3,4,5,6,7,6,5,4,3,2,1,2).iterator(), Spliterator.IMMUTABLE)
 			.forEachRemaining(System.out::println);
+	}
+	
+	@Test
+	public void testDictinct() {
+		IntConsumer ic = (x)->System.out.println(x);
+		StreamSupport.stream(Spliterators.spliterator(new int[] {1,2,3,1,4,2},Spliterator.NONNULL ),false)
+			.distinct().forEach(System.out::println);;
 	}
 	
 }

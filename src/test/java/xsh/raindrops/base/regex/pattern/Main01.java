@@ -48,4 +48,10 @@ public class Main01 {
             System.out.println(result);
         }
 	}
+	
+	@Test
+	public void test03() {
+		String value = "ab";
+	}
+	
 }
